@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vòng Quay May Mắn - Audio Fixed</title>
+    <title>Vòng Quay May Mắn - Final Fix</title>
     <style>
         :root { --primary: #e63946; --dark: #0a192f; --gold: #ffb703; }
         body { 
@@ -36,6 +36,7 @@
         button#spinBtn:disabled { background: #444; box-shadow: 0 4px 0 #222; cursor: not-allowed; }
 
         .info { display: flex; gap: 40px; margin-top: 30px; font-size: 1.5rem; }
+        .info b { color: var(--gold); }
         #mode-indicator { position: fixed; top: 10px; right: 10px; font-size: 10px; color: rgba(255,255,255,0.05); }
     </style>
 </head>
@@ -43,140 +44,4 @@
 
 <div id="mode-indicator">Normal</div>
 
-<div id="result-display">
-    <h2>XIN CHÚC MỪNG!</h2>
-    <h1 id="prize-name">---</h1>
-    <button onclick="closeModal()" style="font-size: 1.2rem; padding: 12px 35px; background: #333; color: white; border-radius: 10px; cursor: pointer; border:none;">TIẾP TỤC</button>
-</div>
-
-<div class="wheel-container">
-    <div class="pointer"></div>
-    <canvas id="wheel" width="500" height="500"></canvas>
-</div>
-
-<button id="spinBtn">QUAY (Space)</button>
-
-<div class="info">
-    <div>Giải 50k: <b id="count50" style="color:var(--gold)">5</b></div>
-    <div>Giải 20k: <b id="count20" style="color:var(--gold)">10</b></div>
-</div>
-
-<audio id="mainSound" preload="auto">
-    <source src="quay-so-ngan.mp3" type="audio/mpeg">
-</audio>
-
-<script>
-    const canvas = document.getElementById('wheel');
-    const ctx = canvas.getContext('2d');
-    const spinBtn = document.getElementById('spinBtn');
-    const mainSound = document.getElementById('mainSound');
-
-    const prizes = [
-        { label: "10.000đ", color: "#457b9d" }, { label: "20.000đ", color: "#2a9d8f" },
-        { label: "10.000đ", color: "#1d3557" }, { label: "50.000đ", color: "#e63946" },
-        { label: "10.000đ", color: "#457b9d" }, { label: "20.000đ", color: "#2a9d8f" },
-        { label: "10.000đ", color: "#1d3557" }, { label: "10.000đ", color: "#f4a261" }
-    ];
-
-    let inventory = { "50.000đ": 5, "20.000đ": 10 };
-    let currentRotation = 0;
-    let isSpinning = false;
-    let cheatMode = false;
-    let particles = [];
-    let pendingResult = "";
-    let safetyTimer = null;
-
-    function drawWheel() {
-        const arc = (2 * Math.PI) / prizes.length;
-        ctx.clearRect(0, 0, 500, 500);
-        prizes.forEach((prize, i) => {
-            const angle = currentRotation + i * arc;
-            ctx.beginPath();
-            ctx.fillStyle = prize.color;
-            ctx.strokeStyle = "#fff";
-            ctx.lineWidth = 2;
-            ctx.moveTo(250, 250);
-            ctx.arc(250, 250, 245, angle, angle + arc);
-            ctx.fill(); ctx.stroke();
-            ctx.save();
-            ctx.fillStyle = "white";
-            ctx.translate(250, 250);
-            ctx.rotate(angle + arc / 2);
-            ctx.font = "bold 20px Arial";
-            ctx.textAlign = "right";
-            ctx.fillText(prize.label, 230, 10);
-            ctx.restore();
-        });
-        ctx.beginPath(); ctx.fillStyle = "white"; ctx.arc(250, 250, 15, 0, Math.PI * 2); ctx.fill();
-        updateParticles();
-    }
-
-    function createFirework() {
-        for (let i = 0; i < 150; i++) {
-            particles.push({
-                x: 250, y: 250,
-                vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
-                size: Math.random() * 4 + 2,
-                color: `hsl(${Math.random() * 360}, 100%, 50%)`, life: 1.0
-            });
-        }
-    }
-
-    function updateParticles() {
-        particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.015;
-            if (p.life <= 0) particles.splice(i, 1);
-            ctx.beginPath(); ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = 1.0;
-        });
-    }
-
-    setInterval(drawWheel, 16);
-
-    function showFinalResult() {
-        if (pendingResult !== "") {
-            clearTimeout(safetyTimer);
-            isSpinning = false;
-            createFirework();
-            document.getElementById('prize-name').innerText = pendingResult;
-            document.getElementById('result-display').style.display = 'block';
-
-            if (inventory[pendingResult] !== undefined) {
-                inventory[pendingResult]--;
-                document.getElementById('count50').innerText = inventory["50.000đ"];
-                document.getElementById('count20').innerText = inventory["20.000đ"];
-            }
-            pendingResult = "";
-        }
-    }
-
-    // Lắng nghe sự kiện kết thúc âm thanh
-    mainSound.onended = showFinalResult;
-
-    window.addEventListener('keydown', (e) => {
-        if (e.code === "Space" && !isSpinning && document.getElementById('result-display').style.display !== 'block') spin();
-        if (e.code === "AltRight" || e.key === "AltGraph") {
-            cheatMode = true;
-            document.getElementById('mode-indicator').innerText = "Target: 50K";
-            e.preventDefault();
-        }
-    });
-
-    spinBtn.onclick = spin;
-
-    function spin() {
-        if (isSpinning) return;
-        isSpinning = true;
-        spinBtn.disabled = true;
-        pendingResult = "";
-        
-        // Mẹo quan trọng: "Mồi" âm thanh để trình duyệt cho phép phát
-        mainSound.pause();
-        mainSound.currentTime = 0;
-        let playPromise = mainSound.play();
-
-        if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.log("Trình duyệt chặn âm thanh. Đang chạy chế độ không âm thanh.");
-                // Nếu chặn hoàn
+<div
