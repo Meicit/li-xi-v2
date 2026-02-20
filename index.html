@@ -10,7 +10,7 @@
             font-family: 'Arial', sans-serif; background: var(--dark);
             margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: white; overflow: hidden;
         }
-        .wheel-container { position: relative; margin-bottom: 20px; }
+        .wheel-container { position: relative; margin-bottom: 20px; z-index: 1; }
         .pointer {
             position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
             width: 40px; height: 50px; background: var(--primary); 
@@ -25,7 +25,7 @@
             border-radius: 30px; text-align: center; display: none; z-index: 100;
             border: 8px solid var(--gold); box-shadow: 0 0 100px rgba(0,0,0,0.8);
         }
-        #result-display h1 { margin: 10px 0; font-size: 4rem; color: var(--primary); }
+        #result-display h1 { margin: 10px 0; font-size: 3.5rem; color: var(--primary); }
         
         button#spinBtn {
             padding: 20px 80px; font-size: 2.5rem; font-weight: bold; cursor: pointer;
@@ -33,7 +33,7 @@
             box-shadow: 0 10px 0 #9d212a; transition: 0.1s; outline: none;
         }
         button#spinBtn:active { transform: translateY(8px); box-shadow: 0 2px 0 #9d212a; }
-        button#spinBtn:disabled { background: #444; box-shadow: 0 4px 0 #222; }
+        button#spinBtn:disabled { background: #444; box-shadow: 0 4px 0 #222; cursor: not-allowed; }
 
         .info { display: flex; gap: 40px; margin-top: 30px; font-size: 1.5rem; }
         #mode-indicator { position: fixed; top: 10px; right: 10px; font-size: 10px; color: rgba(255,255,255,0.05); }
@@ -46,7 +46,7 @@
 <div id="result-display">
     <h2>XIN CHÚC MỪNG!</h2>
     <h1 id="prize-name">---</h1>
-    <button onclick="closeModal()" style="font-size: 1.5rem; padding: 15px 40px; background: #333; color: white; border-radius: 10px; cursor: pointer; border:none;">TIẾP TỤC</button>
+    <button onclick="closeModal()" style="font-size: 1.5rem; padding: 12px 35px; background: #333; color: white; border-radius: 10px; cursor: pointer; border:none;">TIẾP TỤC</button>
 </div>
 
 <div class="wheel-container">
@@ -54,14 +54,14 @@
     <canvas id="wheel" width="500" height="500"></canvas>
 </div>
 
-<button id="spinBtn">QUAY NGAY</button>
+<button id="spinBtn">QUAY (Space)</button>
 
 <div class="info">
     <div>Giải 50k: <b id="count50" style="color:var(--gold)">5</b></div>
     <div>Giải 20k: <b id="count20" style="color:var(--gold)">10</b></div>
 </div>
 
-<audio id="mainSound" src="quay-so.mp3"></audio>
+<audio id="mainSound" src="quay-so-ngan.mp3"></audio>
 
 <script>
     const canvas = document.getElementById('wheel');
@@ -85,6 +85,7 @@
     function drawWheel() {
         const arc = (2 * Math.PI) / prizes.length;
         ctx.clearRect(0, 0, 500, 500);
+        
         prizes.forEach((prize, i) => {
             const angle = currentRotation + i * arc;
             ctx.beginPath();
@@ -120,7 +121,7 @@
 
     function updateParticles() {
         particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.015;
+            p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.015;
             if (p.life <= 0) particles.splice(i, 1);
             ctx.beginPath(); ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
@@ -128,13 +129,15 @@
         });
     }
 
+    // Luôn vẽ lại để đảm bảo không bị trắng Canvas
     setInterval(drawWheel, 16);
 
     window.addEventListener('keydown', (e) => {
-        if (e.code === "Space" && !isSpinning) spin();
+        if (e.code === "Space" && !isSpinning && document.getElementById('result-display').style.display !== 'block') spin();
         if (e.code === "AltRight" || e.key === "AltGraph") {
             cheatMode = true;
             document.getElementById('mode-indicator').innerText = "Target: 50K";
+            e.preventDefault();
         }
     });
 
@@ -145,7 +148,6 @@
         isSpinning = true;
         spinBtn.disabled = true;
         
-        // Phát âm thanh ngay khi bắt đầu
         mainSound.currentTime = 0;
         mainSound.play();
 
@@ -162,9 +164,9 @@
         const arc = (2 * Math.PI) / prizes.length;
         const finalAngle = (prizes.length - targetIndex) * arc - arc/2 - (Math.PI/2);
         
-        // Thời gian quay được cấu hình khớp với độ dài file âm thanh (~15 giây)
-        const duration = 15000; 
-        const totalRotation = (Math.PI * 2) * 25 + finalAngle;
+        // Điều chỉnh thời gian quay khớp với file âm thanh (khoảng 4 giây)
+        const duration = 4200; 
+        const totalRotation = (Math.PI * 2) * 8 + finalAngle;
         let start = null;
 
         function animate(timestamp) {
@@ -172,8 +174,7 @@
             let progress = (timestamp - start) / duration;
             if (progress > 1) progress = 1;
 
-            // Ease out cực mượt để khớp với âm thanh chậm dần
-            const easing = 1 - Math.pow(1 - progress, 4);
+            const easing = 1 - Math.pow(1 - progress, 3);
             currentRotation = easing * totalRotation;
 
             if (progress < 1) {
