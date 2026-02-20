@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vòng Quay May Mắn Pro</title>
+    <title>Vòng Quay May Mắn - Sync Audio</title>
     <style>
         :root { --primary: #e63946; --dark: #0a192f; --gold: #ffb703; }
         body { 
@@ -61,7 +61,7 @@
     <div>Giải 20k: <b id="count20" style="color:var(--gold)">10</b></div>
 </div>
 
-<audio id="mainSound" src="quay-so-ngan.mp3"></audio>
+<audio id="mainSound" src="Am_thanh_vong_quay_may_man_ngan-www_tiengdong_com.mp3"></audio>
 
 <script>
     const canvas = document.getElementById('wheel');
@@ -85,7 +85,6 @@
     function drawWheel() {
         const arc = (2 * Math.PI) / prizes.length;
         ctx.clearRect(0, 0, 500, 500);
-        
         prizes.forEach((prize, i) => {
             const angle = currentRotation + i * arc;
             ctx.beginPath();
@@ -129,7 +128,6 @@
         });
     }
 
-    // Luôn vẽ lại để đảm bảo không bị trắng Canvas
     setInterval(drawWheel, 16);
 
     window.addEventListener('keydown', (e) => {
@@ -164,9 +162,10 @@
         const arc = (2 * Math.PI) / prizes.length;
         const finalAngle = (prizes.length - targetIndex) * arc - arc/2 - (Math.PI/2);
         
-        // Điều chỉnh thời gian quay khớp với file âm thanh (khoảng 4 giây)
-        const duration = 4200; 
-        const totalRotation = (Math.PI * 2) * 8 + finalAngle;
+        // CĂN CHỈNH KHỚP FILE ÂM THANH: 4.6 giây
+        const duration = 4600; 
+        // Số vòng quay tăng lên để khớp đà lịm dần của tiếng gió
+        const totalRotation = (Math.PI * 2) * 12 + finalAngle;
         let start = null;
 
         function animate(timestamp) {
@@ -174,7 +173,8 @@
             let progress = (timestamp - start) / duration;
             if (progress > 1) progress = 1;
 
-            const easing = 1 - Math.pow(1 - progress, 3);
+            // Hàm easing mượt hơn để trôi đều đến hết tiếng chuông
+            const easing = 1 - Math.pow(1 - progress, 4);
             currentRotation = easing * totalRotation;
 
             if (progress < 1) {
