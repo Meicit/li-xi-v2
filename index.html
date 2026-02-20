@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vòng Quay May Mắn</title>
+    <style>
+        :root { --primary: #e63946; --dark: #0a192f; --gold: #ffb703; }
+        body { 
+            font-family: Arial, sans-serif; background: var(--dark);
+            margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; color: white;
+        }
+        .wheel-container { position: relative; margin-bottom: 20px; }
+        .pointer {
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%);
+            width: 40px; height: 50px; background: var(--primary); 
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+            z-index: 10; border: 2px solid white;
+        }
+        canvas { border: 10px solid #fff; border-radius: 50%; background: #222; }
+        
+        #result-display {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; color: #333; padding: 40px; border-radius: 20px;
+            text-align: center; display: none; z-index: 100; border: 5px solid var(--gold);
+        }
+        
+        button#spinBtn {
+            padding: 15px 50px; font-size: 2rem; font-weight: bold; cursor: pointer;
+            background: var(--primary); color: white; border: none; border-radius: 50px;
+            box-shadow: 0 8px 0 #9d212a; outline: none;
+        }
+        button#spinBtn:disabled { background: #444; box-shadow: 0 4px 0 #222; }
+
+        .info { display: flex; gap: 30px; margin-top: 20px; font-size: 1.2rem; }
+        #mode-indicator { position: fixed; top: 10px; right: 10px; font-size: 10px; color: rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body>
+
+<div id="mode-indicator">Normal</div>
+
+<div id="result-display">
+    <h2 style="margin:0">CHÚC MỪNG!</h2>
+    <h1 id="prize-name" style="font-size:3rem; color:var(--primary); margin:10px 0">---</h1>
+    <button onclick="closeModal()" style="font-size:1rem; padding:10px 20px; cursor:pointer">QUAY TIẾP</button>
+</div>
+
+<div class="wheel-container">
+    <div class="pointer"></div>
+    <canvas id="wheel" width="450" height="450"></canvas>
+</div>
+
+<button id="spinBtn">QUAY NGAY</button>
+
+<div class="info">
+    <div>Giải 50k: <b id="count50" style="color:var(--gold)">5</b></div>
+    <div>Giải 20k: <b id="count20" style="color:var(--gold)">10</b></div>
+</div>
+
+<audio id="mainSound" src="quay-so-ngan.mp3"></audio>
+
+<script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const mainSound = document.getElementById('mainSound');
+
+    const prizes = [
+        { label: "10.000đ", color: "#457b9d" }, { label: "20.000đ", color: "#2a9d8f" },
+        { label: "10.000đ", color: "#1d3557" }, { label: "50.000đ", color: "#e63946" },
+        { label: "10.000đ", color: "#457b9d" }, { label: "20.000đ", color: "#2a9d8f" },
+        { label: "10.000đ", color: "#1d3557" }, { label: "10.000đ", color: "#f4a261" }
+    ];
+
+    let inventory = { "50.000đ": 5, "20.000đ": 10 };
+    let currentRotation = 0;
+    let isSpinning = false;
+    let cheatMode = false;
+    let pendingResult = "";
+
+    function draw() {
+        const arc = (Math.PI * 2) / prizes.length;
+        ctx.clearRect(0, 0, 450, 450);
+        
+        prizes.forEach((p, i) => {
+            const ang = currentRotation + i * arc;
+            ctx.beginPath();
+            ctx.fillStyle = p.color;
+            ctx.strokeStyle = "#fff";
+            ctx.moveTo(225, 225);
+            ctx.arc(225, 225, 220, ang, ang + arc);
+            ctx.fill(); ctx.stroke();
+
+            ctx.save();
+            ctx.fillStyle = "white";
+            ctx.translate(225, 225);
+            ctx.rotate(ang + arc / 2);
+            ctx.font = "bold 18px Arial";
+            ctx.textAlign = "right";
+            ctx.fillText(p.label, 210, 10);
+            ctx.restore();
+        });
+        ctx.beginPath(); ctx.fillStyle = "white"; ctx.arc(225, 225, 12, 0, Math.PI*2); ctx.fill();
+    }
+
+    // Vẽ lần đầu tiên ngay khi load
+    draw();
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === "Space" && !isSpinning) spin();
+        if (e.code === "AltRight") {
+            cheatMode = true;
+            document.getElementById('mode-indicator').innerText = "Target: 50K";
+        }
+    });
+
+    spinBtn.onclick = spin;
+
+    function spin() {
+        if (isSpinning) return;
+        isSpinning = true;
+        spinBtn.disabled = true;
+        
+        mainSound.currentTime = 0;
+        mainSound.play().catch(() => console.log("Audio blocked"));
+
+        let targetIdx = Math.floor(Math.random() * prizes.length);
+        if (cheatMode && inventory["50.000đ"] > 0) {
+            targetIdx = 3; // Ô 50k
+            cheatMode = false;
+            document.getElementById('mode-indicator').innerText = "Normal";
+        }
+        if (inventory[prizes[targetIdx].label] === 0) targetIdx = 0;
+
+        const arc = (Math.PI * 2) / prizes.length;
+        const finalAngle = (prizes.length - targetIdx) * arc - arc/2 - (Math.PI/2);
+        const duration = 4600; 
+        const totalRot = (Math.PI * 2) * 10 + finalAngle;
+        let start = null;
+
+        function animate(now) {
+            if (!start) start = now;
+            let t = (now - start) / duration;
+            if (t > 1) t = 1;
+            currentRotation = (1 - Math.pow(1 - t, 4)) * totalRot;
+            draw();
+            if (t < 1) requestAnimationFrame(animate);
+            else {
+                pendingResult = prizes[targetIdx].label;
+                // Đợi âm thanh kết thúc mới hiện bảng
+                mainSound.onended = () => {
+                    document.getElementById('prize-name').innerText = pendingResult;
+                    document.getElementById('result-display').style.display = 'block';
+                    if (inventory[pendingResult] !== undefined) {
+                        inventory[pendingResult]--;
+                        document.getElementById('count50').innerText = inventory["50.000đ"];
+                        document.getElementById('count20').innerText = inventory["20.000đ"];
+                    }
+                };
+                // Phòng hờ nếu âm thanh không chạy
+                setTimeout(() => { if(isSpinning) { mainSound.onended(); isSpinning = false; } }, 1000);
+                isSpinning = false;
+            }
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function closeModal() {
+        document.getElementById('result-display').style.display = 'none';
+        spinBtn.disabled = false;
+    }
+</script>
+</body>
+</html>
