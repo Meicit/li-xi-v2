@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vòng Quay May Mắn - Fast Audio</title>
+    <title>Vòng Quay May Mắn Pro</title>
     <style>
         :root { --primary: #e63946; --dark: #0a192f; --gold: #ffb703; }
         body { 
@@ -17,7 +17,7 @@
             clip-path: polygon(50% 100%, 0 0, 100% 0);
             z-index: 10; border: 2px solid white;
         }
-        canvas { border: 12px solid #fff; border-radius: 50%; background: #222; }
+        canvas { border: 12px solid #fff; border-radius: 50%; background: #222; box-shadow: 0 0 50px rgba(0,0,0,0.5); }
         
         #result-display {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -25,7 +25,7 @@
             border-radius: 30px; text-align: center; display: none; z-index: 100;
             border: 8px solid var(--gold); box-shadow: 0 0 100px rgba(0,0,0,0.8);
         }
-        #result-display h1 { margin: 10px 0; font-size: 3.5rem; color: var(--primary); }
+        #result-display h1 { margin: 10px 0; font-size: 4rem; color: var(--primary); }
         
         button#spinBtn {
             padding: 20px 80px; font-size: 2.5rem; font-weight: bold; cursor: pointer;
@@ -46,7 +46,7 @@
 <div id="result-display">
     <h2>XIN CHÚC MỪNG!</h2>
     <h1 id="prize-name">---</h1>
-    <button onclick="closeModal()" style="font-size: 1.2rem; padding: 12px 35px; background: #333; color: white; border-radius: 10px; cursor: pointer; border:none;">TIẾP TỤC</button>
+    <button onclick="closeModal()" style="font-size: 1.5rem; padding: 15px 40px; background: #333; color: white; border-radius: 10px; cursor: pointer; border:none;">TIẾP TỤC</button>
 </div>
 
 <div class="wheel-container">
@@ -61,15 +61,13 @@
     <div>Giải 20k: <b id="count20" style="color:var(--gold)">10</b></div>
 </div>
 
-<audio id="tickSound" src="https://www.soundjay.com/buttons/sounds/button-16.mp3"></audio>
-<audio id="winSound" src="https://assets.mixkit.co/active_storage/sfx/2019/2019-preview.mp3"></audio>
+<audio id="mainSound" src="quay-so.mp3"></audio>
 
 <script>
     const canvas = document.getElementById('wheel');
     const ctx = canvas.getContext('2d');
     const spinBtn = document.getElementById('spinBtn');
-    const tickSound = document.getElementById('tickSound');
-    const winSound = document.getElementById('winSound');
+    const mainSound = document.getElementById('mainSound');
 
     const prizes = [
         { label: "10.000đ", color: "#457b9d" }, { label: "20.000đ", color: "#2a9d8f" },
@@ -83,7 +81,6 @@
     let isSpinning = false;
     let cheatMode = false;
     let particles = [];
-    let lastTickAngle = 0;
 
     function drawWheel() {
         const arc = (2 * Math.PI) / prizes.length;
@@ -110,25 +107,25 @@
         updateParticles();
     }
 
+    function createFirework() {
+        for (let i = 0; i < 150; i++) {
+            particles.push({
+                x: 250, y: 250,
+                vx: (Math.random() - 0.5) * 15, vy: (Math.random() - 0.5) * 15,
+                size: Math.random() * 4 + 2,
+                color: `hsl(${Math.random() * 360}, 100%, 50%)`, life: 1.0
+            });
+        }
+    }
+
     function updateParticles() {
         particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 0.02;
+            p.x += p.vx; p.y += p.vy; p.vy += 0.15; p.life -= 0.015;
             if (p.life <= 0) particles.splice(i, 1);
             ctx.beginPath(); ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
             ctx.globalAlpha = 1.0;
         });
-    }
-
-    function createFirework() {
-        for (let i = 0; i < 150; i++) {
-            particles.push({
-                x: 250, y: 250,
-                vx: (Math.random() - 0.5) * 18, vy: (Math.random() - 0.5) * 18,
-                size: Math.random() * 4 + 2,
-                color: `hsl(${Math.random() * 360}, 100%, 50%)`, life: 1.0
-            });
-        }
     }
 
     setInterval(drawWheel, 16);
@@ -148,6 +145,10 @@
         isSpinning = true;
         spinBtn.disabled = true;
         
+        // Phát âm thanh ngay khi bắt đầu
+        mainSound.currentTime = 0;
+        mainSound.play();
+
         let targetIndex;
         if (cheatMode && inventory["50.000đ"] > 0) {
             targetIndex = prizes.findIndex(p => p.label === "50.000đ");
@@ -160,30 +161,20 @@
 
         const arc = (2 * Math.PI) / prizes.length;
         const finalAngle = (prizes.length - targetIndex) * arc - arc/2 - (Math.PI/2);
-        const totalRotation = (Math.PI * 2) * 10 + finalAngle;
-        let start = null; 
-        const duration = 5000;
+        
+        // Thời gian quay được cấu hình khớp với độ dài file âm thanh (~15 giây)
+        const duration = 15000; 
+        const totalRotation = (Math.PI * 2) * 25 + finalAngle;
+        let start = null;
 
         function animate(timestamp) {
             if (!start) start = timestamp;
             let progress = (timestamp - start) / duration;
             if (progress > 1) progress = 1;
 
+            // Ease out cực mượt để khớp với âm thanh chậm dần
             const easing = 1 - Math.pow(1 - progress, 4);
             currentRotation = easing * totalRotation;
-
-            // --- TỐI ƯU ÂM THANH TẠCH TẠCH NHANH ---
-            const curDeg = (currentRotation * 180 / Math.PI);
-            // Chia nhỏ bước nhảy (step) để tiếng tạch dồn dập hơn (nhân đôi số khía)
-            const step = (360 / prizes.length); 
-            
-            if (Math.floor(curDeg / step) > Math.floor(lastTickAngle / step)) {
-                const s = tickSound.cloneNode(); // Clone để các tiếng tạch có thể gối đầu nhau
-                s.volume = Math.max(0.1, 0.6 * (1 - progress));
-                s.play().catch(() => {});
-            }
-            lastTickAngle = curDeg;
-            // ---------------------------------------
 
             if (progress < 1) {
                 requestAnimationFrame(animate);
@@ -196,7 +187,6 @@
 
     function finishSpin(result) {
         isSpinning = false;
-        winSound.play();
         createFirework();
         document.getElementById('prize-name').innerText = result;
         document.getElementById('result-display').style.display = 'block';
